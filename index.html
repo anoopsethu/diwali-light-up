@@ -22,7 +22,7 @@
 
         .header {
             width: 100%;
-            height: 25vh; /* 30% of the screen height */
+            height: 25vh; /* 25% of the screen height */
             display: flex;
             align-items: center;
             justify-content: center;
@@ -48,14 +48,13 @@
             border-radius: 60px;
             background: linear-gradient(180deg, #249DAE 0%, #165F6A 100%);
             padding: 12px;
-            display: block;
             text-align: center;
         }
 
         .game-container {
             position: relative;
             width: 100%;
-            height: 75vh; /* 70% of the screen height */
+            height: 75vh; /* 75% of the screen height */
             overflow: hidden;
         }
 
@@ -99,12 +98,76 @@
             background-image: url('bomb.png'); /* Replace with your bomb image */
         }
 
-        #lottie-container{
+        #lottie-container {
             position: absolute;
             left: 0;
             right: 0;
             top: 0;
             bottom: 0;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.75); /* Black background with opacity */
+            animation: fadeIn 0.3s ease-in-out-back;
+        }
+
+        .modal-content {
+            background-image: url(game-over-background.png);
+            margin: auto;
+            border-radius: 24px;
+            width: 312px;
+            text-align: center;
+            background-size: cover;
+            height: 398px;
+            position: relative;
+        }
+
+        #final-score{
+            color: #392A12;
+            text-align: center;
+            font-feature-settings: 'liga' off, 'clig' off;
+            font-family: 'Inter', sans-serif;
+            font-size: 30px;
+            font-style: normal;
+            font-weight: 800;
+            line-height: 130%; /* 40.3px */
+            text-transform: uppercase;
+            display: block;
+            position: absolute;
+            bottom: 155px;
+            width: 100%;
+        }
+
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            display: none;
+        }
+        #restart-game{
+            display: none;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.10.0/lottie.min.js"></script> <!-- Add this line -->
@@ -118,6 +181,16 @@
     <div class="game-container">
         <div id="game-area"></div>
     </div>
+
+    <!-- Game Over Modal -->
+    <div id="game-over-modal" class="modal">
+        <div class="modal-content">
+            <span id="close-modal" class="close-button">&times;</span>
+            <span id="final-score"></span>
+            <button id="restart-game">Restart Game</button>
+        </div>
+    </div>
+
 <script>
     let score = 0;
     let gameArea = document.getElementById('game-area');
@@ -129,26 +202,30 @@
     const maxSpeed = 10; // Maximum speed the game can reach
     let lastBuildingImage = null; // Track the last building's image
 
+    let gameInterval; // Reference to the game loop interval
+
     // Initialize Lottie animation
     const lottieContainer = document.getElementById('lottie-container');
     const animations = [
         'https://lottie.host/331f0934-6c35-4fe3-8d3f-8be1a8401320/TBv4ILm5PF.json', // Replace with the URL of your Lottie JSON files
     ]; // Add more animations as needed
-    const animationInterval = 15000; // 10 seconds
+    const animationInterval = 15000; // 15 seconds
+
+    // Event listeners for modal
+    const closeModal = document.getElementById('close-modal');
+    const restartButton = document.getElementById('restart-game');
+    const modal = document.getElementById('game-over-modal');
+    const finalScore = document.getElementById('final-score');
 
     function clearLottieAnimation() {
-        // Check if Lottie animation is running
         if (lottieContainer.firstChild) {
-            // Stop the animation
             lottie.stop();
-            // Remove all child elements (Lottie container will be cleared)
             lottieContainer.innerHTML = '';
         }
     }
 
     function playRandomAnimation() {
-        clearLottieAnimation(); // Clear previous animation
-
+        clearLottieAnimation();
         const randomAnimation = animations[Math.floor(Math.random() * animations.length)];
         lottie.loadAnimation({
             container: lottieContainer,
@@ -160,8 +237,8 @@
     }
 
     function startAnimationCycle() {
-        playRandomAnimation(); // Start the first animation immediately
-        setInterval(playRandomAnimation, animationInterval); // Schedule next animations
+        playRandomAnimation();
+        setInterval(playRandomAnimation, animationInterval);
     }
 
     function createBuilding() {
@@ -170,9 +247,9 @@
         
         do {
             randomImage = buildingImages[Math.floor(Math.random() * buildingImages.length)];
-        } while (randomImage === lastBuildingImage); // Ensure the new image is different from the last one
+        } while (randomImage === lastBuildingImage);
         
-        lastBuildingImage = randomImage; // Update the last building image
+        lastBuildingImage = randomImage;
         
         building.className = 'building';
         building.style.backgroundImage = `url(${randomImage})`;
@@ -180,21 +257,18 @@
         let img = new Image();
         img.src = randomImage;
         img.onload = function() {
-            // Reduce size to 0.5x
             let buildingWidth = img.width * 0.5;
             let buildingHeight = img.height * 0.5;
             building.style.width = buildingWidth + 'px';
             building.style.height = buildingHeight + 'px';
             building.style.left = window.innerWidth + 'px';
 
-            // Place one item on top of the building
             let item = document.createElement('div');
             let itemType = Math.random() > 0.8 ? 'bomb' : 'diya'; // Randomly choose item type
             item.className = itemType;
 
-            // Center the item horizontally on top of the building
-            item.style.top = '-65px'; // Ensure item is placed at the top of the building
-            item.style.left = (buildingWidth - 70) / 2 + 'px'; // Center item
+            item.style.top = '-65px';
+            item.style.left = (buildingWidth - 70) / 2 + 'px';
 
             item.addEventListener('click', handleItemClick);
             building.appendChild(item);
@@ -202,7 +276,6 @@
             gameArea.appendChild(building);
             buildings.push(building);
 
-            // Prevent overlap by ensuring new buildings start beyond the current screen width
             ensureNoOverlap();
         };
     }
@@ -217,7 +290,6 @@
                 let prevBuilding = buildings[i - 1];
                 let prevBuildingRight = parseFloat(prevBuilding.style.left) + prevBuilding.offsetWidth;
 
-                // Ensure new building starts where the previous one ends
                 if (currentLeft < prevBuildingRight) {
                     building.style.left = prevBuildingRight + 'px';
                 }
@@ -225,27 +297,14 @@
         }
     }
 
-    function handleItemClick(event) {
-        if (event.target.className === 'diya') {
-            event.target.classList.add('active'); // Change to active state
-            score += 10;
-            event.target.removeEventListener('click', handleItemClick);
-        } else if (event.target.className === 'bomb') {
-            alert('Game Over!');
-            location.reload();
-        }
-        scoreDisplay.innerText = `${score}`;
-        increaseSpeed(); // Increase speed based on score
-    }
-
     function moveBuildings() {
         for (let i = 0; i < buildings.length; i++) {
             let building = buildings[i];
             let currentLeft = parseFloat(building.style.left);
+            let newLeft = currentLeft - speed;
+            building.style.left = newLeft + 'px';
 
-            building.style.left = currentLeft - speed + 'px';
-
-            if (currentLeft + building.offsetWidth < 0) {
+            if (newLeft + building.offsetWidth < 0) {
                 gameArea.removeChild(building);
                 buildings.splice(i, 1);
                 i--;
@@ -254,36 +313,69 @@
     }
 
     function increaseSpeed() {
-        // Gradually increase speed based on score, with a cap at maxSpeed
         if (speed < maxSpeed) {
-            speed = 1 + Math.floor(score / 100);
-            if (speed > maxSpeed) speed = maxSpeed;
+            speed += 0.1; // Gradually increase speed
         }
+    }
+
+    function showModal() {
+        finalScore.textContent = score; // Set the final score
+        modal.style.display = 'flex'; // Show the modal
+        stopGame(); // Stop the game
+    }
+
+    function hideModal() {
+        modal.style.display = 'none'; // Hide the modal
+        location.reload(); // Restart the game
+    }
+
+    function stopGame() {
+        if (gameInterval) {
+            cancelAnimationFrame(gameInterval);
+        }
+        clearLottieAnimation();
+        speed = 0;
+    }
+
+    function restartGame() {
+        hideModal(); // Hide the modal and reload the page to restart the game
+    }
+
+    function handleItemClick(event) {
+        if (event.target.className === 'diya') {
+            event.target.classList.add('active');
+            score += 10;
+            event.target.removeEventListener('click', handleItemClick);
+        } else if (event.target.className === 'bomb') {
+            showModal(); // Show game over modal
+        }
+        scoreDisplay.innerText = `${score}`;
+        increaseSpeed(); // Increase speed based on score
     }
 
     function gameLoop() {
         moveBuildings();
 
-        // Check if new building should be created
         if (buildings.length === 0 || buildings[buildings.length - 1].getBoundingClientRect().left < window.innerWidth - buildings[buildings.length - 1].offsetWidth) {
             createBuilding();
         }
 
-        requestAnimationFrame(gameLoop);
+        gameInterval = requestAnimationFrame(gameLoop);
     }
 
     function initGame() {
-        // Create initial set of buildings
         for (let i = 0; i < 5; i++) {
             createBuilding();
         }
 
         gameLoop();
-        startAnimationCycle(); // Start the animation cycle
+        startAnimationCycle();
+
+        closeModal.onclick = hideModal;
+        restartButton.onclick = restartGame;
     }
 
     initGame();
 </script>
-
 </body>
 </html>
