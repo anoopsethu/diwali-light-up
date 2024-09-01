@@ -32,7 +32,7 @@
 
         .header img {
             width: auto;
-            height: 105px;
+            height: 95px;
             display: block;
             margin-top: -20px;
         }
@@ -348,11 +348,16 @@
             score += 10;
             event.target.removeEventListener('click', handleItemClick);
         } else if (event.target.className === 'bomb') {
-            showModal(); // Show game over modal
+            event.target.style.backgroundImage = 'url("bomb-exploded.png")'; // Change to the exploded bomb image
+            event.target.removeEventListener('click', handleItemClick);
+            setTimeout(() => {
+                showModal(); // Show game over modal after the image change
+            }, 300); // Delay showing the modal to give time for the image change
         }
         scoreDisplay.innerText = `${score}`;
         increaseSpeed(); // Increase speed based on score
     }
+
 
     function gameLoop() {
         moveBuildings();
